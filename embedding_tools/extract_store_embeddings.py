@@ -1,5 +1,5 @@
 # https://chatgpt.com/share/67bb27f9-df48-8006-8923-89b42e2933dd
-import os
+import os, sys
 import json
 import datetime
 
@@ -10,13 +10,20 @@ import tempfile
 import shutil
 import json
 import requests
+
+
+HOME_DIR = os.path.expanduser( "~" )
+sys.path.append( f"{ HOME_DIR }/agent_memory/embedding_tools" )
+
+from code_parser.get_file_extension     import get_file_extension
 from code_parser.code_parser            import CodeParser
 from lance_db_manager.lance_db_manager  import LanceDBManager
 
-def get_java_types():
+
+def get_typescript_types():
 
     # URL of the node-types.json file in the tree-sitter-java repository
-    url = "https://raw.githubusercontent.com/tree-sitter/tree-sitter-java/master/src/node-types.json"
+    url = "https://raw.githubusercontent.com/tree-sitter/tree-sitter-typescript/master/typescript/src/node-types.json"
 
     # Fetch the JSON data
     response = requests.get(url)
@@ -32,13 +39,8 @@ def get_java_types():
 # CACHED_EMBEDDINGS_PATH  = os.path.join( "cached_embeddings.json" ) # not sure why we need this yet.
                                                                     # it was in some original that I
                                                                     # copied.
-# it was also mentioned in the
 # Project Specific Constants
-ANDROID_BASE        = "/home/adamsl/AndroidBase"
-CODE_ROOT           = f"{ ANDROID_BASE }/MCBACore/src/main/java/com/awm/mcba/base"
-STORAGE_PATH        = f"{ ANDROID_BASE }/embedding_tools/storage"
-
-# Universal Constants
+STORAGE_PATH        = f"{ HOME_DIR }/agent_memory/embedding_tools/storage"
 NEXUS_DIR           = f"{ STORAGE_PATH }/nexus"                  
 DATABASE_DIR        = f"{ STORAGE_PATH }/vector_database"
 EMBEDDINGS_MODEL    = "text-embedding-ada-002"
@@ -65,7 +67,7 @@ class StorageManager:
         else:
             print(f"❌ Failed to delete {unique_id}. Entry may not exist in either Nexus or LanceDB.")
 
-    def modify_entry(self, unique_id, new_function_code, is_valid_java=True):
+    def modify_entry(self, unique_id, new_function_code, is_valid_code=True):
         """Modify an existing function by replacing its Nexus file and embedding."""
         print(f"🔄 Modifying function {unique_id}...")
 
@@ -76,7 +78,7 @@ class StorageManager:
         new_embedding = self.embedding_generator.generate_embedding(new_function_code)
 
         # Step 3: Save the new function in Nexus
-        new_nexus_path = self.nexus_storage.save_function(new_function_code, unique_id, is_valid_java)
+        new_nexus_path = self.nexus_storage.save_function(new_function_code, unique_id, is_valid_code)
 
         # Step 4: Insert new function into LanceDB
         timestamp_val = time.time()
@@ -96,12 +98,12 @@ class FileProcessor:
 
     def __init__(self, directory, language_arg="java" ):
         self.directory = directory
-        self.file_extension = f".{ language_arg }" # prepend dot for file extension
+        self.file_extension = get_file_extension( language_arg )
         self.code_parser = CodeParser( language_arg )
-        self.types = get_java_types()
+        self.types = get_typescript_types()
 
     def get_files(self):
-        """Retrieve all java files from the directory."""
+        """Retrieve all source files from the directory."""
         debug_info = []
         result = []
         print(f"Processing files in {self.directory}..." )
@@ -130,7 +132,17 @@ class FileProcessor:
         functions = []
 
         def extract_functions(node):
-            if node.type in {"method_declaration", "class_declaration"}:
+            relevant_node_types = {
+                "function_declaration",
+                "function_expression",
+                "arrow_function",
+                "method_declaration",
+                "class_declaration",
+                "interface_declaration",
+                "type_alias_declaration",
+                "enum_declaration"
+            }
+            if node.type in relevant_node_types:
                 code_segment = code[node.start_byte:node.end_byte]
                 functions.append({"code": code_segment, "filepath": filepath})
             for child in node.children:
@@ -167,13 +179,12 @@ class NexusStorage:
         self.nexus_dir = nexus_dir
         os.makedirs(nexus_dir, exist_ok=True)
 
-    def save_function(self, function_code, unique_id, is_valid_java=True):
+    def save_function(self, function_code, file_extension, unique_id, is_valid_code=True):
         """Store the original java function in a file under Nexus safely."""
-        extension = "java" if is_valid_java else "txt"
-        file_path = os.path.join(self.nexus_dir, f"{unique_id}.{extension}")
+        file_path = os.path.join(self.nexus_dir, f"{unique_id}{file_extension}")
 
         # Write to a temp file first, then move to final destination
-        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=self.nexus_dir, suffix=f".{extension}")
+        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=self.nexus_dir, suffix=f".{file_extension}")
 
         try:
             with open(temp_file.name, "w", encoding="utf-8") as f:
@@ -218,27 +229,36 @@ class NexusStorage:
 class CodeEmbeddingPipeline:
     """Orchestrates the entire embedding process."""
 
-    def __init__(self, code_root):
-        self.file_processor         = FileProcessor(code_root)
+    def __init__(self, code_root, language = "java" ):
+        self.language               = language
+        self.file_processor         = FileProcessor( code_root, language )
         self.embedding_generator    = EmbeddingGenerator()
         self.nexus_storage          = NexusStorage()
-        self.db_manager             = LanceDBManager( DATABASE_DIR, "android_base" )
+        self.db_manager             = LanceDBManager( DATABASE_DIR, "CODE_base" )
 
     def process_codebase( self ):
         """Extracts functions, generates embeddings, and stores results."""
         all_files = self.file_processor.get_files() # <---------------------- entry point -----------------------------<<
-        print(f"Processing {len(all_files)} java files..." )
+        print(f"Processing {len(all_files)} { self.language } files..." )
 
         all_data = []
         for file in all_files:
             functions = self.file_processor.get_tree_sitter_functions(file)
+            # continue if the length of the functions array is zero
+            if not functions:
+                continue
+
             for func in functions:
                 embedding = self.embedding_generator.generate_embedding(func["code"])
                 unique_id = str(uuid4())
                 timestamp_val = time()   # TODO: store time of file modification AND
                                          #       the time that this embedding was generated?
                 # Save the original function to Nexus
-                nexus_path = self.nexus_storage.save_function(func["code"], unique_id)
+                # get the extension from the file path
+                file_path = func[ "filepath" ]
+                _, file_extension = os.path.splitext(file_path)
+                
+                nexus_path = self.nexus_storage.save_function(func["code"], file_extension, unique_id)
 
                 # Store only the embedding and path reference in LanceDB
                 metadata = {                    # TODO: store class name?
@@ -273,5 +293,5 @@ class CodeEmbeddingPipeline:
                 print("\n" + "=" * 50 + "\n" )
 
 if __name__ == "__main__":
-    pipeline = CodeEmbeddingPipeline(CODE_ROOT)
+    pipeline = CodeEmbeddingPipeline( "/home/adamsl/the-factory", "typescript" )
     pipeline.process_codebase()

@@ -5,14 +5,14 @@ import sys
 
 # Constants
 HOME_DIR         = os.path.expanduser( "~" )
-sys.path.append( f"{ HOME_DIR }/AndroidBase/embedding_tools" )
+sys.path.append( f"{ HOME_DIR }/embedding_tools" )
 from extract_store_embeddings import EmbeddingGenerator, LanceDBManager, NexusStorage
 
 MODEL = "gpt-4o-mini"
 
 # Constants
-PROMPT_ROOT      = f"{ HOME_DIR }/AndroidBase/embedding_tools"
-STORAGE_PATH     = f"{ HOME_DIR }/AndroidBase/embedding_tools/storage"
+PROMPT_ROOT      = f"{ HOME_DIR }/embedding_tools"
+STORAGE_PATH     = f"{ HOME_DIR }/embedding_tools/storage"
 NEXUS_DIR        = f"{ STORAGE_PATH }/nexus" # Local storage for complete code snippets
 DATABASE_DIR     = f"{ STORAGE_PATH }/vector_database"
 LANCEDB_TABLE_NAME = "android_base"
@@ -93,7 +93,7 @@ class CodeQueryProcessor:
 
         # save prompt to file with a unique filename that has a timestamp
         timestamp_val = time.strftime("mon_%b_%d__%I_%M_%p_%Ss", time.localtime())
-        with open( f"{ HOME_DIR }/AndroidBase/embedding_tools/prompts/ai_code_prompt_{ timestamp_val }.md", "w" ) as file:
+        with open( f"{ HOME_DIR }/embedding_tools/prompts/ai_code_prompt_{ timestamp_val }.md", "w" ) as file:
             file.write( prompt_text )
 
         # Generate AI response
@@ -101,7 +101,7 @@ class CodeQueryProcessor:
 
         # Save AI-generated response
         timestamp_val = time.strftime("mon_%b_%d__%I_%M_%p_%Ss", time.localtime())
-        with open( f"{ HOME_DIR }/AndroidBase/embedding_tools/responses/ai_code_response_{ timestamp_val }.md", "w" ) as file:
+        with open( f"{ HOME_DIR }/embedding_tools/responses/ai_code_response_{ timestamp_val }.md", "w" ) as file:
             file.write( ai_text )
 
         print( "\n\nAI Response:" )

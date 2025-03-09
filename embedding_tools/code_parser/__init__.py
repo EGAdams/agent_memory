@@ -1,4 +1,3 @@
-# code parser
-from .code_parser import CodeParser
+# code parserfrom .code_parser import CodeParser
 
 __all__ = [ 'CodeParser' ]

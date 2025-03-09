@@ -12,38 +12,24 @@ from tree_sitter import Language, Parser
 # print( tree.root_node.type)
 
 class CodeParser:
-    def __init__(self, language: str = "typescript"):
-        self.language = language
-        self.parser = None
-        self.language_lib = None
-        self._initialize_parser()
-
-    def _initialize_parser(self):
-        tree_sitter_lib_so = os.path.expanduser(
-            f"~/tree-sitter-{ self.language }/{ self.language }/libtree-sitter-{ self.language }.so"
-        )
-
-        if not os.path.exists(tree_sitter_lib_so):
-            raise FileNotFoundError(f"Tree-sitter library not found: {tree_sitter_lib_so}")
-
-        # Load the shared library using ctypes
-        lib = ctypes.CDLL(tree_sitter_lib_so)
-
-        # Ensure the function returns an unsigned pointer
-        func_name = f"tree_sitter_{self.language}"
-        if not hasattr(lib, func_name):
-            raise AttributeError(f"Function {func_name} not found in {tree_sitter_lib_so}")
-
-        tree_sitter_func = getattr(lib, func_name)
-        tree_sitter_func.restype = ctypes.c_void_p
-        lang_ptr = tree_sitter_func()
+    def __init__(self, language: str):
+        self.parser = Parser()
+        tree_sitter_lib_so = f"~/embedding_tools/tree-sitter-{ language }/libtree-sitter-{ language }.so"
+        
+        # Load the shared library using ctypes.
+        lib = ctypes.CDLL( tree_sitter_lib_so )
+        # Ensure the function returns an unsigned pointer.
+        lib.tree_sitter_java.restype = ctypes.c_void_p
+        lang_ptr = lib.tree_sitter_java()
 
         # Create the Language object using the pointer.
-        self.language_lib = Language(lang_ptr)
+        java_language = Language(lang_ptr)
 
         # Option 1: Pass the language when instantiating Parser.
-        self.parser = Parser( self.language_lib )
-        # self.parser.set_language(self.language_lib)
+        parser = Parser(java_language)
+        if not os.path.exists( tree_sitter_lib_so ): # *** ERROR if .so file is not found
+            raise FileNotFoundError( f"Tree-sitter library for { language } not found at { tree_sitter_lib_so }" )
+        self.parser = parser
 
     def extract_nodes(self, node, code):
         nodes = []
