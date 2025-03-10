@@ -12,7 +12,7 @@ from tree_sitter import Language, Parser
 # print( tree.root_node.type)
 
 class CodeParser:
-    def __init__(self, language: str = "cpp"):
+    def __init__(self, language: str = "typescript"):
         self.language = language
         self.parser = None
         self.language_lib = None

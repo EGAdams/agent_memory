@@ -132,16 +132,33 @@ class FileProcessor:
         functions = []
 
         def extract_functions(node):
-            relevant_node_types = {
-                "function_declaration",
-                "function_expression",
-                "arrow_function",
-                "method_declaration",
-                "class_declaration",
-                "interface_declaration",
-                "type_alias_declaration",
-                "enum_declaration"
-            }
+            if self.file_extension == ".java":
+                relevant_node_types = {
+                    "function_declaration",
+                    "function_expression",
+                    "arrow_function",
+                    "method_declaration",
+                    "class_declaration",
+                    "interface_declaration",
+                    "type_alias_declaration",
+                    "enum_declaration"
+                }
+            elif self.file_extension == ".cpp":
+                relevant_node_types = {
+                    "function_definition",
+                    "class_specifier",
+                    "struct_specifier",
+                    "namespace_definition",
+                    "template_declaration",
+                    "declaration",  # Covers general declarations
+                    "constructor_definition",
+                    "destructor_definition",
+                    "operator_function",
+                    "enum_specifier",
+                    "typedef_declaration",
+                    "using_declaration"
+                }
+
             if node.type in relevant_node_types:
                 code_segment = code[node.start_byte:node.end_byte]
                 functions.append({"code": code_segment, "filepath": filepath})
@@ -198,7 +215,7 @@ class NexusStorage:
 
     def get_function(self, unique_id):
         """Retrieve a function by ID from Nexus storage safely."""
-        for ext in ["java", "txt"]:  # Check both possible extensions
+        for ext in [ "ts", "cpp", "h", "hpp", "java", "txt", "py" , "js" ]:  # Check both possible extensions
             file_path = os.path.join(self.nexus_dir, f"{unique_id}.{ext}")
             if os.path.exists(file_path):
                 try:
@@ -234,7 +251,7 @@ class CodeEmbeddingPipeline:
         self.file_processor         = FileProcessor( code_root, language )
         self.embedding_generator    = EmbeddingGenerator()
         self.nexus_storage          = NexusStorage()
-        self.db_manager             = LanceDBManager( DATABASE_DIR, "CODE_base" )
+        self.db_manager             = LanceDBManager( DATABASE_DIR, "digi_tennis" )
 
     def process_codebase( self ):
         """Extracts functions, generates embeddings, and stores results."""
@@ -293,5 +310,5 @@ class CodeEmbeddingPipeline:
                 print("\n" + "=" * 50 + "\n" )
 
 if __name__ == "__main__":
-    pipeline = CodeEmbeddingPipeline( "/home/adamsl/the-factory", "typescript" )
+    pipeline = CodeEmbeddingPipeline( "/home/adamsl/fix_serve_switch_logic", "cpp" ) # 030925 worked with typescript factory code
     pipeline.process_codebase()

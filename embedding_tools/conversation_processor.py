@@ -15,7 +15,7 @@ PROMPT_ROOT      = f"{ HOME_DIR }/monitored-objects/embedding_tools"
 STORAGE_PATH     = f"{ HOME_DIR }/monitored-objects/embedding_tools/storage"
 NEXUS_DIR        = f"{ STORAGE_PATH }/nexus"                         # Local storage for TypeScript files
 DATABASE_DIR     = f"{ STORAGE_PATH }/vector_database"
-LANCEDB_TABLE_NAME = "android_base"
+LANCEDB_TABLE_NAME = "digi_tennis"
 
 def ai_completion(prompt, model=MODEL, temp=0.0, top_p=1.0, tokens=8000,
                   freq_pen=0.0, pres_pen=0.0):

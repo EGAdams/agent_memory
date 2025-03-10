@@ -7,6 +7,7 @@ def get_file_extension(language_name):
         "python": ".py",
         "ruby": ".rb",
         "csharp": ".cs",
+        "cpp": ".cpp",
         "c++": ".cpp",
         "c": ".c",
         "go": ".go",
@@ -38,9 +39,9 @@ def get_file_extension(language_name):
     return language_extensions.get(normalized_language_name, None)
 
 # Example usage
-language_name = "TypeScript"
-extension = get_file_extension(language_name)
-if extension:
-    print(f"The file extension for {language_name} is {extension}")
-else:
-    print(f"No file extension found for {language_name}")
+# language_name = "TypeScript"
+# extension = get_file_extension(language_name)
+# if extension:
+#     print(f"The file extension for {language_name} is {extension}")
+# else:
+#     print(f"No file extension found for {language_name}")

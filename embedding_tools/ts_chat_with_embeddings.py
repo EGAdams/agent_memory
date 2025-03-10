@@ -19,7 +19,7 @@ LANCEDB_TABLE_NAME = "digi_tennis"
 
 CONTEXT = """
 # Persona
-Expert C++ developer and seasoned user of GoF Design Patterns.
+Expert TypeScript developer and seasoned user of GoF Design Patterns.
 
 # Context
 You are an AI that helps the user understand and modify code if needed.
@@ -113,7 +113,7 @@ class CodeQueryProcessor:
         for match_id in matching_ids:
             code = self.nexus_storage.get_function( match_id )
             if code:
-                snippets.append( "```cpp\n" + code + "\n```" )
+                snippets.append( "```typescript\n" + code + "\n```" )
         return "\n".join( snippets ) if snippets else "No relevant code found."
 
 
