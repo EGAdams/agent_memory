@@ -1,3 +1,5 @@
 pinecone_chat_dave_s/gpt3_logs/
 pinecone_chat_dave_s/lancedb/
 pinecone_chat_dave_s/key_pinecone.txt
+embedding_tools/storage/
+embedding_tools/the-factory-storage/

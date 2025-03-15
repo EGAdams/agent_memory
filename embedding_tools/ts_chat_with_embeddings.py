@@ -11,11 +11,11 @@ from extract_store_embeddings import EmbeddingGenerator, LanceDBManager, NexusSt
 MODEL = "gpt-4o-mini"
 
 # Constants
+LANCEDB_TABLE_NAME = "the-factory-storage"
 PROMPT_ROOT      = f"{ HOME_DIR }/agent_memory/embedding_tools"
-STORAGE_PATH     = f"{ HOME_DIR }/agent_memory/embedding_tools/storage"
+STORAGE_PATH     = f"{ HOME_DIR }/agent_memory/embedding_tools/{ LANCEDB_TABLE_NAME }"
 NEXUS_DIR        = f"{ STORAGE_PATH }/nexus" # Local storage for complete code snippets
 DATABASE_DIR     = f"{ STORAGE_PATH }/vector_database"
-LANCEDB_TABLE_NAME = "digi_tennis"
 
 CONTEXT = """
 # Persona
@@ -107,19 +107,25 @@ class CodeQueryProcessor:
         print( "\n\nAI Response:" )
         print( ai_text )
 
-    def load_code_snippets( self, matching_ids ):
+    def load_code_snippets(self, matching_ids):
         """Loads relevant code snippets from the Nexus storage."""
         snippets = []
         for match_id in matching_ids:
-            code = self.nexus_storage.get_function( match_id )
+            code = self.nexus_storage.get_function(match_id)
             if code:
-                snippets.append( "```typescript\n" + code + "\n```" )
-        return "\n".join( snippets ) if snippets else "No relevant code found."
+                snippets.append(f"```typescript\n{code}\n```")
+
+        if not snippets:
+            sys.exit("*** ERROR: No relevant code found. ***")
+            # if there was no relevant code in the storage, 
+            # we would not be using this tool!
+
+        return "\n".join(snippets)
 
 
 # Initialize components
 embedding_generator = EmbeddingGenerator()
-nexus_storage = NexusStorage()
+nexus_storage = NexusStorage( NEXUS_DIR )
 db_manager = LanceDBManager( DATABASE_DIR, LANCEDB_TABLE_NAME )
 pipeline = CodeQueryProcessor( db_manager, embedding_generator, nexus_storage )
 

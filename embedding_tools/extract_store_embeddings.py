@@ -14,6 +14,7 @@ import requests
 
 HOME_DIR = os.path.expanduser( "~" )
 sys.path.append( f"{ HOME_DIR }/agent_memory/embedding_tools" )
+EMBEDDINGS_MODEL    = "text-embedding-ada-002"
 
 from code_parser.get_file_extension     import get_file_extension
 from code_parser.code_parser            import CodeParser
@@ -22,7 +23,7 @@ from lance_db_manager.lance_db_manager  import LanceDBManager
 
 def get_typescript_types():
 
-    # URL of the node-types.json file in the tree-sitter-java repository
+    # URL of the node-types.json file in the tree-sitter repository
     url = "https://raw.githubusercontent.com/tree-sitter/tree-sitter-typescript/master/typescript/src/node-types.json"
 
     # Fetch the JSON data
@@ -35,15 +36,6 @@ def get_typescript_types():
     # Display the set of Java node types
     # print( f"Java node types: {java_types}")
     return java_types
-
-# CACHED_EMBEDDINGS_PATH  = os.path.join( "cached_embeddings.json" ) # not sure why we need this yet.
-                                                                    # it was in some original that I
-                                                                    # copied.
-# Project Specific Constants
-STORAGE_PATH        = f"{ HOME_DIR }/agent_memory/embedding_tools/storage"
-NEXUS_DIR           = f"{ STORAGE_PATH }/nexus"                  
-DATABASE_DIR        = f"{ STORAGE_PATH }/vector_database"
-EMBEDDINGS_MODEL    = "text-embedding-ada-002"
 
 class StorageManager:
     """Handles coordinated deletion and modification of Nexus files and LanceDB vector database entries."""
@@ -119,7 +111,7 @@ class FileProcessor:
         return result
 
     def get_tree_sitter_functions(self, filepath):
-        """Extract method and class definitions from a Java file using Tree-Sitter."""
+        """Extract method and class definitions from a file using Tree-Sitter."""
         if "node_modules" in filepath.split(os.sep):
             print(f"Skipping file in node_modules: {filepath}")
             return []
@@ -158,6 +150,19 @@ class FileProcessor:
                     "typedef_declaration",
                     "using_declaration"
                 }
+            elif self.file_extension == ".ts" or self.file_extension == ".tsx":
+                relevant_node_types = {
+                    "function_declaration",
+                    "function_expression",
+                    "arrow_function",
+                    "method_definition",
+                    "class_declaration",
+                    "interface_declaration",
+                    "type_alias_declaration",
+                    "enum_declaration",
+                    "module_declaration",
+                    "namespace_declaration"
+                }
 
             if node.type in relevant_node_types:
                 code_segment = code[node.start_byte:node.end_byte]
@@ -190,14 +195,14 @@ class EmbeddingGenerator:
         return response.data[0].embedding
 
 class NexusStorage:
-    """Handles storing and retrieving java functions locally."""
+    """Handles storing and retrieving code functions locally."""
 
-    def __init__(self, nexus_dir=NEXUS_DIR):
+    def __init__( self, nexus_dir ):
         self.nexus_dir = nexus_dir
         os.makedirs(nexus_dir, exist_ok=True)
 
     def save_function(self, function_code, file_extension, unique_id, is_valid_code=True):
-        """Store the original java function in a file under Nexus safely."""
+        """Store the original function in a file under Nexus safely."""
         file_path = os.path.join(self.nexus_dir, f"{unique_id}{file_extension}")
 
         # Write to a temp file first, then move to final destination
@@ -230,7 +235,7 @@ class NexusStorage:
     
     def delete_function(self, unique_id):
         """Delete a function file from Nexus storage."""
-        for ext in ["java", "txt"]:  # Check both possible extensions
+        for ext in [ "ts", "cpp", "h", "hpp", "java", "txt", "py" , "js"]:  # Check both possible extensions
             file_path = os.path.join(self.nexus_dir, f"{unique_id}.{ext}")
             if os.path.exists(file_path):
                 try:
@@ -246,12 +251,12 @@ class NexusStorage:
 class CodeEmbeddingPipeline:
     """Orchestrates the entire embedding process."""
 
-    def __init__(self, code_root, language = "java" ):
+    def __init__(self, code_root, language, table, database_dir, nexus_dir ):
         self.language               = language
         self.file_processor         = FileProcessor( code_root, language )
         self.embedding_generator    = EmbeddingGenerator()
-        self.nexus_storage          = NexusStorage()
-        self.db_manager             = LanceDBManager( DATABASE_DIR, "digi_tennis" )
+        self.nexus_storage          = NexusStorage( nexus_dir)
+        self.db_manager             = LanceDBManager( database_dir, table )
 
     def process_codebase( self ):
         """Extracts functions, generates embeddings, and stores results."""
@@ -293,7 +298,7 @@ class CodeEmbeddingPipeline:
             print("Embeddings stored successfully in LanceDB." )
 
     def search_code(self, query):
-        """Perform a vector search and retrieve matching java functions."""
+        """Perform a vector search and retrieve matching functions."""
         query_embedding = self.embedding_generator.generate_embedding(query)
         matching_ids = self.db_manager.search_embeddings(query_embedding)
 
@@ -301,7 +306,7 @@ class CodeEmbeddingPipeline:
             print("No matches found." )
             return
 
-        print("\nMatching java functions:\n" )
+        print("\nMatching functions:\n" )
         for match_id in matching_ids:
             function_code = self.nexus_storage.get_function(match_id)
             if function_code:
@@ -309,6 +314,22 @@ class CodeEmbeddingPipeline:
                 print(function_code)
                 print("\n" + "=" * 50 + "\n" )
 
+# /////////////////////////////////////////////////////////////////////////////
+# /////// Modify the path and language below for specific extractions /////////
+# /////////////////////////////////////////////////////////////////////////////
+
+# CACHED_EMBEDDINGS_PATH  = os.path.join( "cached_embeddings.json" ) # not sure why we need this yet.
+                                                                    # it was in some original that I
+                                                                    # copied.
+
 if __name__ == "__main__":
-    pipeline = CodeEmbeddingPipeline( "/home/adamsl/fix_serve_switch_logic", "cpp" ) # 030925 worked with typescript factory code
-    pipeline.process_codebase()
+    
+    # Project Specific Constants
+    LANGUAGE            = "typescript"
+    SOURCE_FILES        = "/home/adamsl/the-factory/src"
+    TABLE_DIRECTORY     = "the-factory-storage"
+    STORAGE_PATH        = f"{ HOME_DIR }/agent_memory/embedding_tools/{ TABLE_DIRECTORY }"
+    NEXUS_DIR           = f"{ STORAGE_PATH }/nexus"                  
+    DATABASE_DIR        = f"{ STORAGE_PATH }/vector_database"
+    pipeline = CodeEmbeddingPipeline( SOURCE_FILES, LANGUAGE, TABLE_DIRECTORY, DATABASE_DIR, NEXUS_DIR ) 
+    pipeline.process_codebase()         # 030925 worked with typescript factory code
