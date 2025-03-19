@@ -1,0 +1,59 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .accordion {
+            margin: 10px 0;
+        }
+        .panel {
+            display: none;
+            padding: 0px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <script src="./dist/bundle.js" defer></script><!-- omg.. defer is NOT OPTIONAL !!! -->
+    <h1>Monitored Objects</h1>
+    <div id="monitored-objects"></div>
+
+    <script>
+        async function fetchMonitoredObjects() {
+            const response = await fetch('https://americansjewelry.com/libraries/local-php-api/index.php/object/selectAll'); // Updated API endpoint
+            const objects = await response.json();
+            displayMonitoredObjects(objects);
+        }
+
+        function displayMonitoredObjects(objects) {
+            const container = document.getElementById('monitored-objects');
+            container.innerHTML = ''; // Clear previous content
+
+            objects.forEach(object => {
+                const accordionSection = document.createElement('accordion-section');
+                accordionSection.setAttribute('id', 'accordion-section-' + object.object_view_id.split('_')[1]);
+                accordionSection.setAttribute('monitored_object_id', object.object_view_id);
+                accordionSection.setAttribute('data_source_location', 'https://americansjewelry.com/libraries/local-php-api/index.php/');
+                container.appendChild(accordionSection);
+            });
+        }
+
+        // Fetch monitored objects on page load
+        window.onload = fetchMonitoredObjects;
+
+        // Accordion functionality
+        document.getElementById('accordion-section').addEventListener('click', function() {
+            const panel = this.querySelector('.panel');
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        });
+    </script>
+</body>
+</html>
